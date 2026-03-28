@@ -19,6 +19,7 @@ from drift.features import FeatureBuilder
 from drift.model import ModelBuilder
 from drift.trainer import Trainer
 from drift.tuner import OptunaTuner
+from drift.feature_selector import FeatureSelector
 
 
 def plot_confusion_matrix(cm):
@@ -78,6 +79,20 @@ def main():
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)
 
+    # =====================
+    # FEATURE SELECTION
+    # =====================
+    selector = FeatureSelector(C=0.05)
+
+    feature_idx = selector.fit(X_train, y_train, X_val, y_val)
+
+    X_train = selector.transform(X_train)
+    X_val = selector.transform(X_val)
+    X_test = selector.transform(X_test)
+
+    # =====================
+    # TORCH
+    # =====================
     X_train = torch.tensor(X_train.toarray(), dtype=torch.float32)
     X_val = torch.tensor(X_val.toarray(), dtype=torch.float32)
     X_test = torch.tensor(X_test.toarray(), dtype=torch.float32)
@@ -128,13 +143,12 @@ def main():
     probs = calibrator.predict_proba(raw_probs.reshape(-1, 1))[:, 1]
 
     # =====================
-    # BEST THRESHOLD (PR curve)
+    # BEST THRESHOLD
     # =====================
     precision, recall, thresholds = precision_recall_curve(y_test.numpy(), probs)
 
     f1_scores = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-6)
 
-    # ограничение threshold (ключевая штука)
     valid = thresholds > 0.2
     f1_scores = f1_scores * valid
 
@@ -191,13 +205,11 @@ def main():
     print("\nFINAL METRICS")
     print("F1:", best_f1)
     print("ACC:", accuracy_score(y_test.numpy(), preds))
-    print("Best threshold:", best_t)
 
     # =====================
     # CONFUSION MATRIX
     # =====================
     cm = confusion_matrix(y_test.numpy(), preds)
-    print("\nConfusion Matrix:\n", cm)
     plot_confusion_matrix(cm)
 
     # =====================
@@ -206,7 +218,7 @@ def main():
     plot_roc(y_test.numpy(), probs)
 
     # =====================
-    # SAVE EVERYTHING
+    # SAVE
     # =====================
     os.makedirs("models", exist_ok=True)
 
@@ -215,6 +227,7 @@ def main():
     joblib.dump(calibrator, "models/calibrator.pkl")
     joblib.dump(fb, "models/feature_builder.pkl")
     joblib.dump(best_t, "models/threshold.pkl")
+    joblib.dump(feature_idx, "models/feature_mask.pkl")
 
     print("\nAll artifacts saved to models/")
 
