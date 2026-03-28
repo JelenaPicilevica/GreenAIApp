@@ -73,14 +73,14 @@ def main():
     # =====================
     # SCALE
     # =====================
-    scaler = StandardScaler()
+    scaler = StandardScaler(with_mean=False)
     X_train = scaler.fit_transform(X_train)
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)
 
-    X_train = torch.tensor(X_train)
-    X_val = torch.tensor(X_val)
-    X_test = torch.tensor(X_test)
+    X_train = torch.tensor(X_train.toarray(), dtype=torch.float32)
+    X_val = torch.tensor(X_val.toarray(), dtype=torch.float32)
+    X_test = torch.tensor(X_test.toarray(), dtype=torch.float32)
 
     y_train = torch.tensor(y_train)
     y_val = torch.tensor(y_val)
@@ -143,6 +143,47 @@ def main():
     best_t = thresholds[best_idx]
 
     preds = (probs > best_t).astype(int)
+
+    # =====================
+    # CONFIDENCE ANALYSIS
+    # =====================
+    confidence = np.abs(probs - 0.5)
+
+    LOW = 0.3
+    HIGH = 0.7
+
+    low_zone = probs < LOW
+    mid_zone = (probs >= LOW) & (probs <= HIGH)
+    high_zone = probs > HIGH
+
+    print("\n===== CONFIDENCE ANALYSIS =====")
+    print("Total:", len(probs))
+
+    print("\nCounts:")
+    print("LOW (уверенно нет):", low_zone.sum())
+    print("MID (сомнение → DistilBERT):", mid_zone.sum())
+    print("HIGH (уверенно drift):", high_zone.sum())
+
+    print("\nPercent:")
+    print("LOW:", low_zone.mean())
+    print("MID:", mid_zone.mean())
+    print("HIGH:", high_zone.mean())
+
+    # =====================
+    # QUALITY BY ZONES
+    # =====================
+    def eval_zone(name, mask):
+        if mask.sum() == 0:
+            print(name, "empty")
+            return
+
+        acc = accuracy_score(y_test.numpy()[mask], preds[mask])
+        print(f"{name}: samples={mask.sum()}, acc={acc:.4f}")
+
+    print("\n===== ZONE QUALITY =====")
+    eval_zone("LOW", low_zone)
+    eval_zone("MID", mid_zone)
+    eval_zone("HIGH", high_zone)
 
     # =====================
     # METRICS
