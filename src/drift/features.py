@@ -4,6 +4,7 @@ Feature engineering with logging.
 
 import re
 import numpy as np
+from scipy.sparse import hstack, csr_matrix
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
@@ -39,12 +40,15 @@ class FeatureBuilder:
         c1 = self.char_tfidf.transform(df["sentence1"])
         c2 = self.char_tfidf.transform(df["sentence2"])
 
-        w1d, w2d = w1.toarray(), w2.toarray()
-        c1d, c2d = c1.toarray(), c2.toarray()
+        # sparse diff
+        diff = w1 - w2
+        diff.data = np.abs(diff.data)
 
-        diff = np.abs(w1d - w2d)
-        prod = w1d * w2d
-        char_diff = np.abs(c1d - c2d)
+        char_diff = c1 - c2
+        char_diff.data = np.abs(char_diff.data)
+
+        # sparse product
+        prod = w1.multiply(w2)
 
         w1n, w2n = normalize(w1), normalize(w2)
         cos_tfidf = np.sum(w1n.multiply(w2n), axis=1).A1
@@ -113,17 +117,17 @@ class FeatureBuilder:
 
         manual = np.array(manual) * 3.0
 
-        X = np.concatenate([
-            diff, prod, char_diff,
-            diff_svd,
-            cos_tfidf.reshape(-1, 1),
-            cos_svd.reshape(-1, 1),
-            manual
-        ], axis=1)
+        X = hstack([
+            diff,
+            prod,
+            char_diff,
+            csr_matrix(diff_svd),
+            csr_matrix(cos_tfidf.reshape(-1, 1)),
+            csr_matrix(cos_svd.reshape(-1, 1)),
+            csr_matrix(manual)
+        ]).tocsr()
 
         print("\n[FEATURES DEBUG]")
         print("Shape:", X.shape)
-        print("Mean:", np.mean(X))
-        print("Std:", np.std(X))
 
         return X.astype(np.float32), y
