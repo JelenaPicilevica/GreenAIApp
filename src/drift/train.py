@@ -17,17 +17,31 @@ def main():
 
     print("\n🚀 START PIPELINE\n")
 
+    # =====================
+    # DATA
+    # =====================
     loader = DatasetLoader()
     train_df, val_df, test_df = loader.load()
 
+    # =====================
+    # NN PIPELINE
+    # =====================
     pipeline = DriftPipeline()
     pipeline.fit(train_df, val_df)
 
     probs = pipeline.predict_proba(test_df)
     y_true = test_df["drift"].values
 
-    nn_f1, nn_acc, auc_nn = Evaluator.evaluate("NN", y_true, probs)
+    results = []
 
+    # =====================
+    # NN
+    # =====================
+    results.append(Evaluator.evaluate_full("NN", y_true, probs))
+
+    # =====================
+    # TRANSFORMER
+    # =====================
     transformer = TransformerFallback()
 
     tr_probs = []
@@ -39,22 +53,37 @@ def main():
 
     tr_probs = np.array(tr_probs)
 
-    tr_f1, tr_acc, auc_tr = Evaluator.evaluate("Transformer", y_true, tr_probs)
+    results.append(Evaluator.evaluate_full("Transformer", y_true, tr_probs))
 
+    # =====================
+    # HYBRID
+    # =====================
     router = DriftRouter(transformer)
     final_probs = router.route(probs, test_df)
 
-    hybrid_f1, hybrid_acc, auc_hybrid = Evaluator.evaluate("Hybrid", y_true, final_probs)
+    results.append(Evaluator.evaluate_full("Hybrid", y_true, final_probs))
 
-    print("\n===== SUMMARY =====")
-    print(f"NN AUC: {auc_nn:.3f}")
-    print(f"Transformer AUC: {auc_tr:.3f}")
-    print(f"Hybrid AUC: {auc_hybrid:.3f}")
+    # =====================
+    # PLOTS
+    # =====================
+    models = {
+        "Neural Network": probs,
+        "Transformer": tr_probs,
+        "Hybrid": final_probs
+    }
+
+    Evaluator.plot_all_confusion(y_true, models)
+    Evaluator.plot_roc_all(y_true, models)
 
     # =====================
     # DEBUG
     # =====================
     Evaluator.debug_hybrid(y_true, probs, final_probs)
+
+    # =====================
+    # FINAL TABLE
+    # =====================
+    Evaluator.print_comparison_table(results)
 
 
 if __name__ == "__main__":
