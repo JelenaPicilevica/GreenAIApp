@@ -66,8 +66,12 @@ class DriftPipeline:
     def predict_proba(self, df):
         X, _ = self.fb.build(df)
 
+        print("Features before selection:", X.shape)
+
         X = self.scaler.transform(X)
         X = self.selector.transform(X)
+
+        print("Features after selection:", X.shape)
 
         X = torch.tensor(X.toarray(), dtype=torch.float32)
 
