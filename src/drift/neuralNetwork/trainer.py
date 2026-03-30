@@ -91,8 +91,12 @@ class Trainer:
 
         self.model.load_state_dict(best_model)
 
-        os.makedirs("../models", exist_ok=True)
-        torch.save(self.model.state_dict(), "../models/drift_model.pt")
+        BASE_DIR = os.path.dirname(__file__)
+        MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../../models"))
+
+        os.makedirs(MODEL_DIR, exist_ok=True)
+        torch.save(self.model.state_dict(), os.path.join(MODEL_DIR, "drift_model.pt"))
+
         print("\nModel saved to models/drift_model.pt")
 
         return self.model
