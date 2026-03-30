@@ -32,7 +32,7 @@ class FeatureBuilder:
 
         print(f"\nBuilding features for {len(df)} samples...")
 
-        y = df["label"].values
+        y = df["drift"].values
 
         w1 = self.word_tfidf.transform(df["sentence1"])
         w2 = self.word_tfidf.transform(df["sentence2"])
@@ -115,7 +115,7 @@ class FeatureBuilder:
                 interaction
             ])
 
-        manual = np.array(manual) * 3.0
+        manual = np.array(manual) * 1.5
 
         X = hstack([
             diff,

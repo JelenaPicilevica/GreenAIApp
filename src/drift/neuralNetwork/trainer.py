@@ -7,6 +7,20 @@ from sklearn.metrics import f1_score
 
 class Trainer:
 
+    """
+    Handles neural network training loop including:
+    - optimization (AdamW)
+    - learning rate scheduling (CosineAnnealing)
+    - class-weighted loss to penalize false positives
+    - mini-batch training
+    - validation using F1 score with threshold search
+    - early stopping based on validation performance
+    - saving best model weights
+
+    Output:
+    - trained PyTorch model with best validation F1
+    """
+
     def __init__(self, model, params):
         self.model = model
         self.params = params
@@ -18,7 +32,12 @@ class Trainer:
         )
 
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=20)
-        self.loss_fn = torch.nn.CrossEntropyLoss()
+
+        # Сlass weights to reduce FP
+        # This is done as predicting drift incorrectly (FP) is costly
+        self.loss_fn = torch.nn.CrossEntropyLoss(
+            weight=torch.tensor([2.0, 1.0])
+        )
 
     def train(self, X_train, y_train, X_val, y_val):
 
@@ -72,9 +91,8 @@ class Trainer:
 
         self.model.load_state_dict(best_model)
 
-        # SAVE MODEL
-        os.makedirs("models", exist_ok=True)
-        torch.save(self.model.state_dict(), "models/drift_model.pt")
+        os.makedirs("../models", exist_ok=True)
+        torch.save(self.model.state_dict(), "../models/drift_model.pt")
         print("\nModel saved to models/drift_model.pt")
 
         return self.model
