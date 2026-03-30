@@ -3,7 +3,7 @@ import optuna
 import torch
 from sklearn.metrics import precision_recall_curve
 
-from model import ModelBuilder
+from drift.neuralNetwork.model import ModelBuilder
 
 """
 Hyperparameter tuning with:
@@ -11,7 +11,6 @@ Hyperparameter tuning with:
 - F1 + Accuracy
 - Top-5 summary
 """
-
 
 class OptunaTuner:
 
