@@ -25,7 +25,7 @@ class TransformerFallback:
         # =====================
         if model_path is None:
             BASE_DIR = os.path.dirname(__file__)
-            model_path = os.path.join(BASE_DIR, "../../../models/best_model_transformer.pt")
+            model_path = os.path.join(BASE_DIR, "../../../../models/best_model_transformer.pt")
 
         print(f"[TransformerFallback] Loading weights from: {model_path}")
 

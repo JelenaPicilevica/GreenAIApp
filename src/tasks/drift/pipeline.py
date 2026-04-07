@@ -2,11 +2,11 @@ import torch
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from drift.neuralNetwork.feature_selector import FeatureSelector
-from drift.neuralNetwork.features import FeatureBuilder
-from drift.neuralNetwork.model import ModelBuilder
-from drift.neuralNetwork.trainer import Trainer
-from drift.neuralNetwork.tuner import OptunaTuner
+from core.feature_selector import FeatureSelector
+from core.features import FeatureBuilder
+from core.model import ModelBuilder
+from tasks.drift.trainer import Trainer
+from tasks.drift.tuner import OptunaTuner
 
 
 class DriftPipeline:

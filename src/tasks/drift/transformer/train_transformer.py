@@ -188,7 +188,7 @@ def main():
         # Saving best
         if val_f1 > best_f1:
             best_f1 = val_f1
-            torch.save(model.state_dict(), "../../../models/best_model_transformer.pt")
+            torch.save(model.state_dict(), "../../../../models/best_model_transformer.pt")
             print(" Saved best model")
 
     print("\n🏁 Done")

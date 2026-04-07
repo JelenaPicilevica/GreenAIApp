@@ -1,11 +1,11 @@
 import numpy as np
 
-from drift.neuralNetwork.dataset import DatasetLoader
-from drift.transformer.transformer_fallback import TransformerFallback
+from tasks.drift.dataset import DatasetLoader
+from tasks.drift.transformer.transformer_fallback import TransformerFallback
 
-from drift.pipeline.drift_pipeline import DriftPipeline
-from drift.pipeline.drift_router import DriftRouter
-from drift.pipeline.evaluator import Evaluator
+from tasks.drift.pipeline import DriftPipeline
+from tasks.drift.router import DriftRouter
+from tasks.drift.evaluator import Evaluator
 
 
 def main():

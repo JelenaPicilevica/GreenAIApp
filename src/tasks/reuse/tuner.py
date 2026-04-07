@@ -1,16 +1,11 @@
-import numpy as np
+# reuse/neuralNetwork/tuner.py
+
 import optuna
 import torch
-from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import f1_score
 
-from drift.neuralNetwork.model import ModelBuilder
+from core.model import ModelBuilder
 
-"""
-Hyperparameter tuning with:
-- compact logging
-- F1 + Accuracy
-- Top-5 summary
-"""
 
 class OptunaTuner:
 
@@ -21,7 +16,6 @@ class OptunaTuner:
         self.y_val = y_val
 
         self.best_f1 = 0.0
-        self.trials_history = []
 
     def objective(self, trial):
 
@@ -57,56 +51,28 @@ class OptunaTuner:
                 optimizer.step()
 
         with torch.no_grad():
-            probs = torch.softmax(model(self.X_val), dim=1)[:, 1].numpy()
+            logits = model(self.X_val)
+            preds = torch.argmax(logits, dim=1).numpy()
 
-        precision, recall, thresholds = precision_recall_curve(self.y_val.numpy(), probs)
+        f1 = f1_score(self.y_val.numpy(), preds)
 
-        f1_scores = 2 * precision[:-1] * recall[:-1] / (precision[:-1] + recall[:-1] + 1e-6)
-
-        valid = thresholds > 0.2
-        f1_scores = f1_scores * valid
-
-        best_idx = np.argmax(f1_scores)
-        best_f1 = f1_scores[best_idx]
-
-        preds = (probs > thresholds[best_idx]).astype(int)
-        best_acc = (preds == self.y_val.numpy()).mean()
-
-        self.trials_history.append({
-            "trial": trial.number,
-            "f1": best_f1,
-            "acc": best_acc,
-            "params": trial.params
-        })
-
-        is_best = best_f1 > self.best_f1
+        is_best = f1 > self.best_f1
         if is_best:
-            self.best_f1 = best_f1
+            self.best_f1 = f1
 
-        arrow = " ↑ BEST" if is_best else ""
+        print(f"[T{trial.number}] F1={f1:.4f}" + (" ↑ BEST" if is_best else ""))
 
-        print(
-            f"[T{trial.number}] "
-            f"F1={best_f1:.4f} | ACC={best_acc:.4f} | "
-            f"drop={dropout:.2f}; lr={lr:.4g}; wd={wd:.4g}; batch={batch}"
-            f"{arrow}"
-        )
+        return f1
 
-        return best_f1
+    def tune(self, n_trials=30):
 
-    def tune(self, n_trials=50):
-
-        print("\n========== OPTUNA TUNING ==========\n")
+        print("\n========== REUSE TUNING ==========\n")
 
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         study = optuna.create_study(direction="maximize")
         study.optimize(self.objective, n_trials=n_trials)
 
-        print("\n========== BEST RESULT ==========")
-        print(
-            f"Best F1: {study.best_value:.4f}\n"
-            f"Best params: {study.best_params}"
-        )
+        print("\nBest params:", study.best_params)
 
         return study.best_params
