@@ -4,7 +4,7 @@ import optuna
 import torch
 from sklearn.metrics import f1_score
 
-from core.model import ModelBuilder
+from src.core.model import ModelBuilder
 
 
 class OptunaTuner:

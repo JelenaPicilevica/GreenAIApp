@@ -1,11 +1,11 @@
 import numpy as np
 
-from tasks.drift.dataset import DatasetLoader
-from tasks.drift.transformer.transformer_fallback import TransformerFallback
+from src.tasks.drift.dataset import DatasetLoader
+from src.tasks.drift.transformer.transformer_fallback import TransformerFallback
 
-from tasks.drift.pipeline import DriftPipeline
-from tasks.drift.router import DriftRouter
-from tasks.drift.evaluator import Evaluator
+from src.tasks.drift.pipeline import DriftPipeline
+from src.tasks.drift.router import DriftRouter
+from src.tasks.drift.evaluator import Evaluator
 
 
 def main():
