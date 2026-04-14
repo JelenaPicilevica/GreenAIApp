@@ -11,8 +11,8 @@ from sklearn.metrics import (
     recall_score
 )
 
-from tasks.reuse.dataset import ReuseDatasetLoader
-from tasks.reuse.pipeline import ReusePipeline
+from src.tasks.reuse.dataset import ReuseDatasetLoader
+from src.tasks.reuse.pipeline import ReusePipeline
 
 
 # =====================
