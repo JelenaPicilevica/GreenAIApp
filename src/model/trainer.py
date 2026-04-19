@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import os
 
 from sklearn.metrics import f1_score
 
@@ -31,7 +30,9 @@ class Trainer:
             weight_decay=params["wd"]
         )
 
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=20)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=20
+        )
 
         # Сlass weights to reduce FP
         # This is done as predicting drift incorrectly (FP) is costly
@@ -46,6 +47,7 @@ class Trainer:
         best_f1 = 0
         patience = 5
         counter = 0
+        best_model = None
 
         for epoch in range(20):
 
@@ -91,12 +93,6 @@ class Trainer:
 
         self.model.load_state_dict(best_model)
 
-        BASE_DIR = os.path.dirname(__file__)
-        MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "../../../models"))
-
-        os.makedirs(MODEL_DIR, exist_ok=True)
-        torch.save(self.model.state_dict(), os.path.join(MODEL_DIR, "drift_model.pt"))
-
-        print("\nModel saved to models/drift_model.pt")
+        print("\nTraining finished (no saving at this stage)")
 
         return self.model

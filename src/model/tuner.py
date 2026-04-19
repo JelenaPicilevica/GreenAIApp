@@ -3,7 +3,7 @@ import optuna
 import torch
 from sklearn.metrics import precision_recall_curve
 
-from src.core.model import ModelBuilder
+from src.model.drift_model import ModelBuilder
 
 """
 Hyperparameter tuning with:
