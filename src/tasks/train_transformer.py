@@ -1,3 +1,4 @@
+import os
 import torch
 from datasets import load_dataset
 from sklearn.metrics import f1_score
@@ -16,13 +17,23 @@ LR = 2e-5
 
 
 # =====================
+# PATHS
+# =====================
+BASE_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../..")
+)
+
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+os.makedirs(MODELS_DIR, exist_ok=True)
+
+
+# =====================
 # DATASET
 # =====================
 class PawsDataset(Dataset):
     def __init__(self, sentence1, sentence2, labels, tokenizer, max_len=128):
         self.labels = labels
 
-        # Tokenization
         self.encodings = tokenizer(
             sentence1,
             sentence2,
@@ -97,6 +108,8 @@ def evaluate(model, loader, device):
 # =====================
 def main():
     print("🚀 START")
+
+    print("Saving models to:", MODELS_DIR)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device:", device)
@@ -185,13 +198,18 @@ def main():
 
         val_f1 = evaluate(model, val_loader, device)
 
-        # Saving best
+        # =====================
+        # SAVE BEST MODEL
+        # =====================
         if val_f1 > best_f1:
             best_f1 = val_f1
-            torch.save(model.state_dict(), "../../../../models/best_model_transformer.pt")
-            print(" Saved best model")
 
-    print("\n🏁 Done")
+            MODEL_PATH = os.path.join(MODELS_DIR, "transformer_model.pt")
+
+            torch.save(model.state_dict(), MODEL_PATH)
+            print("Saved best transformer model to:", MODEL_PATH)
+
+    print("\n Done")
     print("Best F1:", best_f1)
 
 
