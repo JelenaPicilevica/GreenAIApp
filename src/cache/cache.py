@@ -24,13 +24,17 @@ class Cache:
         with open(self.path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
 
-            for row in reader:
+            for i, row in enumerate(reader):
                 try:
                     question = row[0]
                     answer = row[1]
 
-                    # parse embedding safely
-                    embedding = np.array(ast.literal_eval(row[2]), dtype=np.float32)
+                    emb_raw = row[2].strip('"')
+
+                    embedding = np.array(
+                        ast.literal_eval(emb_raw),
+                        dtype=np.float32
+                    )
 
                     self.data.append({
                         "question": question,
@@ -48,28 +52,44 @@ class Cache:
     # =====================
     def add(self, question, answer, embedding):
 
-        # ensure list format (NOT numpy)
+        # sanitize text (no commas/newlines)
+        question = (
+            question.replace("\n", " ")
+                    .replace("\r", " ")
+                    .replace(",", " ")
+        )
+
+        answer = (
+            answer.replace("\n", " ")
+                  .replace("\r", " ")
+                  .replace("<br>", " ")
+                  .replace(",", " ")
+        )
+
+        # ensure list
         if isinstance(embedding, np.ndarray):
             embedding = embedding.tolist()
 
-        # stringify like in dataset
-        embedding_str = str(embedding)
+        # embedding wrapped in quotes
+        embedding_str = f"\"{embedding}\""
 
-        # append to CSV
-        with open(self.path, "a", encoding="utf-8", newline="") as f:
-            writer = csv.writer(f)
+        line = f"{question},{answer},{embedding_str}\n"
 
-            writer.writerow([
-                question,
-                answer,
-                embedding_str
-            ])
+        # ensuring newline before append
+        if os.path.exists(self.path) and os.path.getsize(self.path) > 0:
+            with open(self.path, "rb+") as f:
+                f.seek(-1, os.SEEK_END)
+                if f.read(1) != b"\n":
+                    f.write(b"\n")
 
-        # also keep in memory
+        with open(self.path, "a", encoding="utf-8") as f:
+            f.write(line)
+
+        # update memory
         self.data.append({
             "question": question,
             "answer": answer,
             "embedding": np.array(embedding, dtype=np.float32)
         })
 
-        print("✅ Saved to cache (correct format)")
+        print("✅ Saved to cache")
