@@ -13,7 +13,8 @@ defaults = {
     "conversation": [],
     "last_answer": None,
     "last_source": None,
-    "question": None
+    "question": None,
+    "selected_cached_question": None
 }
 
 for k, v in defaults.items():
@@ -24,7 +25,7 @@ for k, v in defaults.items():
 st.title("🍃 Green AI App")
 
 # =====================
-# CHAT DISPLAYF
+# CHAT DISPLAY
 # =====================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -47,10 +48,7 @@ if st.session_state.mode == "candidates":
     data = st.session_state.candidates
 
     if data["no_drift"]:
-        st.markdown(
-            "<small><b>Closest matches</b></small>",
-            unsafe_allow_html=True
-        )
+        st.markdown("<small><b>Closest matches</b></small>", unsafe_allow_html=True)
         for item in data["no_drift"]:
             if st.button(item["question"]):
                 st.session_state.messages.append({
@@ -59,14 +57,15 @@ if st.session_state.mode == "candidates":
                 })
                 st.session_state.last_answer = item["answer"]
                 st.session_state.last_source = "cache"
+
+                # STORE SELECTED QUESTION
+                st.session_state.selected_cached_question = item["question"]
+
                 st.session_state.mode = "feedback"
                 st.rerun()
 
     if data["drifted"]:
-        st.markdown(
-            "<small><b>⚠️ Possible (drift detected)</b></small>",
-            unsafe_allow_html=True
-        )
+        st.markdown("<small><b>⚠️ Possible (drift detected)</b></small>", unsafe_allow_html=True)
         for item in data["drifted"]:
             if st.button(item["question"]):
                 st.session_state.messages.append({
@@ -75,6 +74,10 @@ if st.session_state.mode == "candidates":
                 })
                 st.session_state.last_answer = item["answer"]
                 st.session_state.last_source = "cache"
+
+                # STORE SELECTED QUESTION
+                st.session_state.selected_cached_question = item["question"]
+
                 st.session_state.mode = "feedback"
                 st.rerun()
 
@@ -83,6 +86,29 @@ if st.session_state.mode == "candidates":
         st.session_state.conversation = [
             {"role": "user", "content": st.session_state.question}
         ]
+        st.rerun()
+
+# =====================
+# CHOOSE PROMPT
+# =====================
+if st.session_state.mode == "choose_prompt":
+
+    st.markdown("Choose how to proceed:")
+
+    col1, col2 = st.columns(2)
+
+    if col1.button(f"Reuse prompt: {st.session_state.selected_cached_question}"):
+        st.session_state.conversation = [
+            {"role": "user", "content": st.session_state.selected_cached_question}
+        ]
+        st.session_state.mode = "llm"
+        st.rerun()
+
+    if col2.button(f"Use original: {st.session_state.question}"):
+        st.session_state.conversation = [
+            {"role": "user", "content": st.session_state.question}
+        ]
+        st.session_state.mode = "llm"
         st.rerun()
 
 # =====================
@@ -117,7 +143,7 @@ if st.session_state.mode == "llm":
 # =====================
 if st.session_state.mode == "feedback":
 
-    st.markdown("Are you satisfied?")
+    st.markdown("Are you satisfied or do you want to continue with LLM?")
 
     c1, c2 = st.columns(2)
 
@@ -141,10 +167,7 @@ if st.session_state.mode == "feedback":
     if c2.button("Continue"):
 
         if st.session_state.last_source == "cache":
-            st.session_state.mode = "llm"
-            st.session_state.conversation = [
-                {"role": "user", "content": st.session_state.question}
-            ]
+            st.session_state.mode = "choose_prompt"
         else:
             st.session_state.mode = "llm_wait"
 
@@ -181,6 +204,7 @@ if user_input:
         })
         st.session_state.last_answer = result["answer"]
         st.session_state.last_source = "cache"
+        st.session_state.selected_cached_question = user_input
         st.session_state.mode = "feedback"
         st.rerun()
 
