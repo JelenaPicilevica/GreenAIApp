@@ -4,13 +4,25 @@ from src.inference.semantic_engine import SemanticEngine
 engine = SemanticEngine()
 
 
+# =====================
+# HELPERS
+# =====================
 def format_green(tokens, energy, co2):
     energy_mwh = energy * 1e6
+    co2_mg = co2 * 1e6
+
     return (
         f"{tokens} tokens saved, "
         f"{energy_mwh:.4f} mWh, "
-        f"{co2 * 1000:.5f} g CO₂"
+        f"{co2_mg:.2f} mg CO₂"
     )
+
+
+def energy_to_phone_seconds(energy_kwh):
+    phone_power_w = 10
+    energy_wh = energy_kwh * 1000
+    seconds = (energy_wh / phone_power_w) * 3600
+    return seconds
 
 
 # =====================
@@ -60,14 +72,20 @@ with header:
         unsafe_allow_html=True
     )
 
-    d1, d2, d3 = st.columns(3)
+    d1, d2, d3, d4 = st.columns(4)
 
     d1.metric("Tokens", st.session_state.total_tokens_saved)
 
     energy_mwh_total = st.session_state.total_energy_saved * 1e6
     d2.metric("Energy (mWh)", f"{energy_mwh_total:.4f}")
 
-    d3.metric("CO₂ (g)", f"{st.session_state.total_co2_saved * 1000:.5f}")
+    co2_mg_total = st.session_state.total_co2_saved * 1e6
+    d3.metric("CO₂ (mg)", f"{co2_mg_total:.2f}")
+
+    phone_seconds_total = energy_to_phone_seconds(
+        st.session_state.total_energy_saved
+    )
+    d4.metric("Phone 🔋 (sec)", f"{phone_seconds_total:.2f}")
 
     st.markdown("---")
 
@@ -198,7 +216,8 @@ if st.session_state.mode == "choose_prompt":
         f"<small><b>With reuse prompt you can save "
         f"{delta_tokens} tokens, "
         f"{energy_saved * 1e6:.4f} mWh, "
-        f"{co2_saved * 1000:.5f} g CO₂</b></small>",
+        f"{co2_saved * 1e6:.2f} mg CO₂"
+        f"</b></small>",
         unsafe_allow_html=True
     )
 
