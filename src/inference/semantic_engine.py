@@ -11,6 +11,9 @@ client = OpenAI()
 
 class SemanticEngine:
 
+    ENERGY_PER_TOKEN = 1.6e-8
+    CARBON_INTENSITY = 0.5
+
     def __init__(self):
 
         base = os.getcwd()
@@ -36,11 +39,9 @@ class SemanticEngine:
             self.pipeline = None
             self.model = None
 
-    # =====================
     def normalize(self, t):
         return t.lower().strip().replace("?", "")
 
-    # =====================
     def embed(self, text):
         r = client.embeddings.create(
             model="text-embedding-3-small",
@@ -49,11 +50,9 @@ class SemanticEngine:
         e = np.array(r.data[0].embedding, dtype=np.float32)
         return e / np.linalg.norm(e)
 
-    # =====================
     def similarity(self, a, b):
         return float(np.dot(a, b))
 
-    # =====================
     def drift(self, q, p):
 
         if self.model is None:
@@ -81,14 +80,28 @@ class SemanticEngine:
         except:
             return 0.0
 
-    # =====================
+    # helper for UI
+    def count_tokens(self, text):
+        return self.cache.count_tokens(text)
+
     def analyze(self, query):
 
         qn = self.normalize(query)
 
         for item in self.cache.data:
             if qn == self.normalize(item["question"]):
-                return {"status": "auto", "answer": item["answer"]}
+
+                tokens_saved = item["prompt_tokens"] + item["response_tokens"]
+                energy_saved = tokens_saved * self.ENERGY_PER_TOKEN
+                co2_saved = energy_saved * self.CARBON_INTENSITY
+
+                return {
+                    "status": "auto",
+                    "answer": item["answer"],
+                    "tokens_saved": tokens_saved,
+                    "energy_saved": energy_saved,
+                    "co2_saved": co2_saved
+                }
 
         emb = self.embed(query)
 
@@ -105,11 +118,18 @@ class SemanticEngine:
 
                 drift_val = self.drift(query, item["question"])
 
+                tokens_saved = item["prompt_tokens"] + item["response_tokens"]
+                energy_saved = tokens_saved * self.ENERGY_PER_TOKEN
+                co2_saved = energy_saved * self.CARBON_INTENSITY
+
                 rec = {
                     "question": item["question"],
                     "answer": item["answer"],
                     "score": score,
-                    "drift": drift_val
+                    "drift": drift_val,
+                    "tokens_saved": tokens_saved,
+                    "energy_saved": energy_saved,
+                    "co2_saved": co2_saved
                 }
 
                 (nd if drift_val < 0.5 else d).append(rec)
@@ -123,7 +143,6 @@ class SemanticEngine:
             "drifted": sorted(d, key=lambda x: x["score"], reverse=True)[:3]
         }
 
-    # =====================
     def call_llm(self, messages):
 
         r = client.chat.completions.create(
@@ -133,11 +152,8 @@ class SemanticEngine:
 
         return r.choices[0].message.content
 
-    # =====================
     def is_clarification(self, text):
-
         triggers = ["clarify", "more details", "what do you mean", "specify"]
-
         return any(t in text.lower() for t in triggers)
 
     # =====================
@@ -167,7 +183,6 @@ class SemanticEngine:
 
         return question.strip().replace("\n", "").replace('"', '')
 
-    # =====================
     def save_to_cache(self, conversation, answer):
 
         q = self.build_question(conversation)

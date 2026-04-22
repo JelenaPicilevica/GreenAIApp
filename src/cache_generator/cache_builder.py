@@ -4,17 +4,23 @@ import os
 import urllib.request
 from tqdm import tqdm
 from openai import OpenAI
+import tiktoken
 
 
 class CacheBuilder:
 
-    def __init__(self, squad_path, output_path):
+    def __init__(self, squad_path, output_path, model="gpt-4o-mini"):
         self.squad_path = squad_path
         self.output_path = output_path
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # ---------------- DOWNLOAD ----------------
+        self.encoding = tiktoken.encoding_for_model(model)
 
+    # ---------------- TOKEN COUNT ----------------
+    def count_tokens(self, text: str) -> int:
+        return len(self.encoding.encode(text))
+
+    # ---------------- DOWNLOAD ----------------
     def ensure_squad(self):
         if not os.path.exists(self.squad_path):
             print("Downloading SQuAD dataset...")
@@ -51,7 +57,6 @@ class CacheBuilder:
         return samples
 
     # ---------------- EMBEDDINGS ----------------
-
     def embed_batch(self, texts):
         response = self.client.embeddings.create(
             model="text-embedding-3-small",
@@ -60,7 +65,6 @@ class CacheBuilder:
         return [e.embedding for e in response.data]
 
     # ---------------- BUILD ----------------
-
     def build(self, limit=100000, batch_size=200):
 
         print("📥 Loading SQuAD...")
@@ -75,12 +79,19 @@ class CacheBuilder:
 
         with open(self.output_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["prompt", "answer", "embedding"])
 
-            idx = 0
+            writer.writerow([
+                "prompt",
+                "answer",
+                "embedding",
+                "prompt_tokens",
+                "response_tokens"
+            ])
+
+            total_written = 0
 
             for i in tqdm(range(0, len(prompts), batch_size)):
-                batch = prompts[i:i+batch_size]
+                batch = prompts[i:i + batch_size]
 
                 try:
                     emb_batch = self.embed_batch(batch)
@@ -91,18 +102,23 @@ class CacheBuilder:
                         continue
 
                     for j, emb in enumerate(emb_batch):
-                        item = data[idx]
+                        item = data[i + j]   # Fixed indexing
+
+                        prompt_tokens = self.count_tokens(item["prompt"])
+                        response_tokens = self.count_tokens(item["answer"])
 
                         writer.writerow([
                             item["prompt"],
                             item["answer"],
-                            json.dumps(emb)
+                            json.dumps(emb),
+                            prompt_tokens,
+                            response_tokens
                         ])
 
-                        idx += 1
+                        total_written += 1
 
                 except Exception as e:
-                    print(f"❌ Error at batch {i}: {e}")
+                    print(f"Error at batch {i}: {e}")
                     continue
 
-        print(f"✅ DONE: saved {idx} records")
+        print(f"DONE: saved {total_written} records")

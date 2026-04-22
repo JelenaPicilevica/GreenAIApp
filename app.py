@@ -3,6 +3,16 @@ from src.inference.semantic_engine import SemanticEngine
 
 engine = SemanticEngine()
 
+
+def format_green(tokens, energy, co2):
+    energy_mwh = energy * 1e6
+    return (
+        f"{tokens} tokens saved, "
+        f"{energy_mwh:.4f} mWh, "
+        f"{co2 * 1000:.5f} g CO₂"
+    )
+
+
 # =====================
 # STATE INIT
 # =====================
@@ -14,15 +24,53 @@ defaults = {
     "last_answer": None,
     "last_source": None,
     "question": None,
-    "selected_cached_question": None
+    "selected_cached_question": None,
+
+    # dashboard
+    "total_tokens_saved": 0,
+    "total_energy_saved": 0.0,
+    "total_co2_saved": 0.0
 }
 
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
+
 # =====================
-st.title("🍃 Green AI App")
+# HEADER + DASHBOARD
+# =====================
+header = st.container()
+
+with header:
+    st.markdown("# 🍃 Green AI App")
+
+    st.markdown(
+        """
+        <div style="
+            background-color: rgba(255,255,255,0.03);
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+        ">
+        <b>🌱 Session Impact</b>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    d1, d2, d3 = st.columns(3)
+
+    d1.metric("Tokens", st.session_state.total_tokens_saved)
+
+    energy_mwh_total = st.session_state.total_energy_saved * 1e6
+    d2.metric("Energy (mWh)", f"{energy_mwh_total:.4f}")
+
+    d3.metric("CO₂ (g)", f"{st.session_state.total_co2_saved * 1000:.5f}")
+
+    st.markdown("---")
+
 
 # =====================
 # CHAT DISPLAY
@@ -32,7 +80,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"], unsafe_allow_html=True)
 
 # =====================
-# LLM WAIT MESSAGE
+# LLM WAIT
 # =====================
 if st.session_state.mode == "llm_wait":
     st.markdown(
@@ -51,34 +99,51 @@ if st.session_state.mode == "candidates":
         st.markdown("<small><b>Closest matches</b></small>", unsafe_allow_html=True)
         for item in data["no_drift"]:
             if st.button(item["question"]):
+
+                # update dashboard
+                st.session_state.total_tokens_saved += item["tokens_saved"]
+                st.session_state.total_energy_saved += item["energy_saved"]
+                st.session_state.total_co2_saved += item["co2_saved"]
+
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": f"{item['answer']}<br><small><b>Retrieved from cache</b></small>"
+                    "content": (
+                        f"{item['answer']}<br><small><b>Retrieved from cache ("
+                        f"{format_green(item['tokens_saved'], item['energy_saved'], item['co2_saved'])}"
+                        f")</b></small>"
+                    )
                 })
+
                 st.session_state.last_answer = item["answer"]
                 st.session_state.last_source = "cache"
-
-                # STORE SELECTED QUESTION
                 st.session_state.selected_cached_question = item["question"]
-
                 st.session_state.mode = "feedback"
+
                 st.rerun()
 
     if data["drifted"]:
         st.markdown("<small><b>⚠️ Possible (drift detected)</b></small>", unsafe_allow_html=True)
         for item in data["drifted"]:
             if st.button(item["question"]):
+
+                st.session_state.total_tokens_saved += item["tokens_saved"]
+                st.session_state.total_energy_saved += item["energy_saved"]
+                st.session_state.total_co2_saved += item["co2_saved"]
+
                 st.session_state.messages.append({
                     "role": "assistant",
-                    "content": f"{item['answer']}<br><small><b>Retrieved from cache</b></small>"
+                    "content": (
+                        f"{item['answer']}<br><small><b>Retrieved from cache ("
+                        f"{format_green(item['tokens_saved'], item['energy_saved'], item['co2_saved'])}"
+                        f")</b></small>"
+                    )
                 })
+
                 st.session_state.last_answer = item["answer"]
                 st.session_state.last_source = "cache"
-
-                # STORE SELECTED QUESTION
                 st.session_state.selected_cached_question = item["question"]
-
                 st.session_state.mode = "feedback"
+
                 st.rerun()
 
     if st.button("None of these"):
@@ -87,6 +152,7 @@ if st.session_state.mode == "candidates":
             {"role": "user", "content": st.session_state.question}
         ]
         st.rerun()
+
 
 # =====================
 # CHOOSE PROMPT
@@ -97,19 +163,45 @@ if st.session_state.mode == "choose_prompt":
 
     col1, col2 = st.columns(2)
 
-    if col1.button(f"Reuse prompt: {st.session_state.selected_cached_question}"):
+    cached_q = st.session_state.selected_cached_question
+    original_q = st.session_state.question
+
+    cached_tokens = engine.count_tokens(cached_q)
+    original_tokens = engine.count_tokens(original_q)
+
+    delta_tokens = max(original_tokens - cached_tokens, 0)
+
+    energy_saved = delta_tokens * engine.ENERGY_PER_TOKEN
+    co2_saved = energy_saved * engine.CARBON_INTENSITY
+
+    if col1.button(f"Reuse prompt:\n{cached_q}"):
+
+        # add reuse savings
+        st.session_state.total_tokens_saved += delta_tokens
+        st.session_state.total_energy_saved += energy_saved
+        st.session_state.total_co2_saved += co2_saved
+
         st.session_state.conversation = [
-            {"role": "user", "content": st.session_state.selected_cached_question}
+            {"role": "user", "content": cached_q}
         ]
         st.session_state.mode = "llm"
         st.rerun()
 
-    if col2.button(f"Use original: {st.session_state.question}"):
+    if col2.button(f"Use original:\n{original_q}"):
         st.session_state.conversation = [
-            {"role": "user", "content": st.session_state.question}
+            {"role": "user", "content": original_q}
         ]
         st.session_state.mode = "llm"
         st.rerun()
+
+    st.markdown(
+        f"<small><b>With reuse prompt you can save "
+        f"{delta_tokens} tokens, "
+        f"{energy_saved * 1e6:.4f} mWh, "
+        f"{co2_saved * 1000:.5f} g CO₂</b></small>",
+        unsafe_allow_html=True
+    )
+
 
 # =====================
 # LLM FLOW
@@ -137,6 +229,7 @@ if st.session_state.mode == "llm":
         st.session_state.mode = "feedback"
 
     st.rerun()
+
 
 # =====================
 # FEEDBACK
@@ -173,6 +266,7 @@ if st.session_state.mode == "feedback":
 
         st.rerun()
 
+
 # =====================
 # INPUT
 # =====================
@@ -198,14 +292,26 @@ if user_input:
     result = engine.analyze(user_input)
 
     if result["status"] == "auto":
+
+        # update dashboard
+        st.session_state.total_tokens_saved += result["tokens_saved"]
+        st.session_state.total_energy_saved += result["energy_saved"]
+        st.session_state.total_co2_saved += result["co2_saved"]
+
         st.session_state.messages.append({
             "role": "assistant",
-            "content": f"{result['answer']}<br><small><b>Retrieved from cache</b></small>"
+            "content": (
+                f"{result['answer']}<br><small><b>Retrieved from cache ("
+                f"{format_green(result['tokens_saved'], result['energy_saved'], result['co2_saved'])}"
+                f")</b></small>"
+            )
         })
+
         st.session_state.last_answer = result["answer"]
         st.session_state.last_source = "cache"
         st.session_state.selected_cached_question = user_input
         st.session_state.mode = "feedback"
+
         st.rerun()
 
     if result["status"] == "candidates":
