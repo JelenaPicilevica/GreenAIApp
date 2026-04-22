@@ -2,6 +2,7 @@ import os
 import csv
 import ast
 import numpy as np
+import tiktoken
 
 
 class Cache:
@@ -10,15 +11,17 @@ class Cache:
         self.path = path
         self.data = []
 
+        self.encoding = tiktoken.encoding_for_model("gpt-4o-mini")
+
         if os.path.exists(self.path):
             print(f"LOADING CACHE FROM: {self.path}")
             self.load()
         else:
             print(" Cache file not found")
 
-    # =====================
-    # LOAD
-    # =====================
+    def count_tokens(self, text):
+        return len(self.encoding.encode(text))
+
     def load(self):
 
         with open(self.path, "r", encoding="utf-8") as f:
@@ -36,10 +39,15 @@ class Cache:
                         dtype=np.float32
                     )
 
+                    prompt_tokens = int(row[3]) if len(row) > 3 else self.count_tokens(question)
+                    response_tokens = int(row[4]) if len(row) > 4 else self.count_tokens(answer)
+
                     self.data.append({
                         "question": question,
                         "answer": answer,
-                        "embedding": embedding
+                        "embedding": embedding,
+                        "prompt_tokens": prompt_tokens,
+                        "response_tokens": response_tokens
                     })
 
                 except Exception as e:
@@ -73,9 +81,11 @@ class Cache:
         # embedding wrapped in quotes
         embedding_str = f"\"{embedding}\""
 
-        line = f"{question},{answer},{embedding_str}\n"
+        prompt_tokens = self.count_tokens(question)
+        response_tokens = self.count_tokens(answer)
 
-        # ensuring newline before append
+        line = f"{question},{answer},{embedding_str},{prompt_tokens},{response_tokens}\n"
+
         if os.path.exists(self.path) and os.path.getsize(self.path) > 0:
             with open(self.path, "rb+") as f:
                 f.seek(-1, os.SEEK_END)
@@ -89,7 +99,9 @@ class Cache:
         self.data.append({
             "question": question,
             "answer": answer,
-            "embedding": np.array(embedding, dtype=np.float32)
+            "embedding": np.array(embedding, dtype=np.float32),
+            "prompt_tokens": prompt_tokens,
+            "response_tokens": response_tokens
         })
 
         print("✅ Saved to cache")
