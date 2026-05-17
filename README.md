@@ -1,4 +1,4 @@
-# GreenAIApp
+# Green AI App
 
 Cache-aware Green AI framework for reducing redundant Large Language Model (LLM) inference through 
 semantic caching, semantic drift detection, and adaptive prompt/response reuse.
