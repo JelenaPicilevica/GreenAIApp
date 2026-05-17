@@ -55,17 +55,8 @@ while reducing token usage, estimated energy consumption, and CO₂ emissions.
 
 # Project Workflow
 
-PAWS dataset
-    ↓
-Train transformer-based semantic drift model
-    ↓
-Train lightweight neural network
-    ↓
-Combine models into hybrid fallback mechanism
-    ↓
-Generate experimental semantic cache dataset from SQuAD prompts
-    ↓
-Run Streamlit application
+PAWS dataset -> Train transformer-based semantic drift model -> Train lightweight neural network -> Combine models into hybrid fallback mechanism
+-> Generate experimental semantic cache dataset from SQuAD prompts -> Run Streamlit application
 
 ---
 
