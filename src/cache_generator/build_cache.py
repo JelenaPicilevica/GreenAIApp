@@ -13,7 +13,7 @@ def main():
         output_path=output_path
     )
 
-    builder.build(limit=100000)
+    builder.build(limit=500)
 
 
 if __name__ == "__main__":
