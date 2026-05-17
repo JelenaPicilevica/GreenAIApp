@@ -225,5 +225,3 @@ The framework evaluates:
 # Author
 
 Jeļena Picilēviča
-
-Master Thesis Project — Green AI and LLM Inference Optimization
