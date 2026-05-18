@@ -30,7 +30,7 @@ from datasets import load_dataset
 from src.model.transformer_fallback import TransformerFallback
 
 
-class InferenceBenchmark:
+class ArchitectureBenchmark:
 
     def __init__(
             self,
@@ -239,7 +239,7 @@ if __name__ == "__main__":
 
     ROOT_DIR = Path(__file__).resolve().parents[2]
 
-    benchmark = InferenceBenchmark(
+    benchmark = ArchitectureBenchmark(
         nn_model_path=ROOT_DIR / "models" / "drift_model.pt",
         transformer_model_path=ROOT_DIR / "models" / "transformer_model.pt",
         pipeline_path=ROOT_DIR / "models" / "drift_feature_pipeline.pkl",
